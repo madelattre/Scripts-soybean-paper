@@ -1,3 +1,9 @@
+##################################################
+## Modeling soybean growth: a mixed model approach.
+## Delattre, M. et al.
+##################################################
+
+
 ## Script for the analysis of the 2017 soybean growth data
 
 rm(list=ls())
