@@ -405,3 +405,67 @@ for (repCV in 1:nrep_CV){
   mse.cv <- c(mse.cv,mean((compare$uest-compare$upred)^2))
 }
 
+####
+## 7- Compare predicted parameters between varieties
+#### 
+
+beta.est <- res.soybean.2017$res.theta$beta[niterSAEM+1,]
+u.pred   <- res.soybean.2017$res.pred$u[,niterPred+1]
+
+
+## Predicted parameters per plant
+
+phi.pred <- matrix(0,N,nb.phi)
+for (i in 1:N){
+  phi.pred[i,] <- Xi[i,,] %*% beta.est + Zi[i,,] %*% u.pred 
+}
+
+## Predicted parameters per variety and per condition
+
+
+XiD <- matrix(0,nb.phi,d)
+XiD[1:nb.phi,1:nb.phi] <- diag(1,nb.phi)
+XiC <- XiD
+XiC[1:nb.phi,(nb.phi+1):d] <- diag(1,d-nb.phi)
+
+ZivarD <- array(0,dim=c(Nv,nb.phi,d*Nv))
+ZivarC <- array(0,dim=c(Nv,nb.phi,d*Nv))
+
+for (i in 1:Nv){
+  vari <- l_var$varID[l_var$order==i]
+  ZivarD[i,1:nb.phi,1:(nb.phi*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
+  ZivarC[i,1:nb.phi,(nb.phi*Nv+1):(d*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
+}
+
+phi.predC <- matrix(0,nb.phi,Nv)
+phi.predD <- matrix(0,nb.phi,Nv)
+for (i in 1:Nv){
+  phi.predC[,i] <- XiC %*% beta.est + ZivarC[i,,] %*% u.pred
+  phi.predD[,i] <- XiD %*% beta.est + ZivarD[i,,] %*% u.pred
+}
+
+delta.pred <- phi.predC-phi.predD
+
+## Histograms
+
+param.pred <- tibble(Ac=phi.predC[1,],Ad=phi.predD[1,],Bc=phi.predC[2,],
+                     Bd=phi.predD[2,],deltaA=delta.pred[1,],
+                     deltaB=delta.pred[2,])
+
+ggplot(param.pred, aes(x=Ac)) + 
+  geom_histogram(binwidth=0.02,aes(y=..density..), colour="black", fill="white") + 
+  geom_density(alpha=.1, fill="#FF6666") +
+  xlab(expression(A[C]))
+
+ggplot(param.pred, aes(x=deltaA)) + 
+  geom_histogram(binwidth=0.02,aes(y=..density..), colour="black", fill="white") + 
+  geom_density(alpha=.1, fill="#FF6666") +
+  xlab(expression(delta[A]))
+
+## Scatter plots comparing parameters between conditions
+
+ggplot(param.pred, aes(x=Ac,y=Ad)) + geom_point() + xlab(expression(A[C])) + 
+  ylab(expression(A[D]))
+
+ggplot(param.pred, aes(x=Bc,y=Bd)) + geom_point() + xlab(expression(B[C])) + 
+  ylab(expression(B[D]))
