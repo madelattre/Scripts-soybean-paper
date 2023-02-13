@@ -1,3 +1,8 @@
+##################################################
+## Modeling soybean growth: a mixed model approach.
+## Delattre, M. et al.
+##################################################
+
 ## Script of simulations under Scenario 2 in section 2.4 of the article
 
 ## Source main functions and load necessary R libraries
