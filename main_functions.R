@@ -1,3 +1,8 @@
+##################################################
+## Modeling soybean growth: a mixed model approach.
+## Delattre, M. et al.
+##################################################
+
 ## Creating block diagonal matrices (cf help package Matrix, Copyright (C) 2016 
 ## Martin Maechler, ETH Zurich)
 
