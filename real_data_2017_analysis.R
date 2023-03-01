@@ -16,6 +16,8 @@ library(ggplot2)
 library(tidyverse)
 library(cowplot)
 library(doBy)
+library(readxl)
+library(ggpubr)
 
 ## Source main functions and specify repositories
 functionsrepository <- dirname(rstudioapi::getActiveDocumentContext()$path) ## Specify the name of the algorithm functions repository 
@@ -177,31 +179,33 @@ res.soybean.2017 <- list(res.pred=res.pred, res.theta=res.theta)
 res.soybean.2017.file <- 'Res.soybean.2017.Rdata'
 save(res.soybean.2017,file=paste(resultsrepositoryname,'/',res.soybean.2017.file,sep=''))
 
+load(paste(resultsrepositoryname,'/',res.soybean.2017.file,sep=''))
+
 ####
 ## 3- Convergence graphs for the parameter estimations
 ####
 
-nbeta <- dim(res.theta$beta)[2]
-niter <- dim(res.theta$beta)[1]
+nbeta <- dim(res.soybean.2017$res.theta$beta)[2]
+niter <- dim(res.soybean.2017$res.theta$beta)[1]
 
-convSAEM <- tibble(beta1 = res.theta$beta[,1],
-                   beta2 = res.theta$beta[,2],
-                   beta3 = res.theta$beta[,3],
-                   beta4 = res.theta$beta[,4],
-                   sigma2 = res.theta$sigma2,
-                   P11 = res.theta$P[,1,1],
-                   P22 = res.theta$P[,2,2],
-                   P12 = res.theta$P[,1,2],
-                   G11 = res.theta$G[,1,1],
-                   G22 = res.theta$G[,2,2],
-                   G33 = res.theta$G[,3,3],
-                   G44 = res.theta$G[,4,4],
-                   G12 = res.theta$G[,1,2],
-                   G13 = res.theta$G[,1,3],
-                   G14 = res.theta$G[,1,4],
-                   G23 = res.theta$G[,2,3],
-                   G24 = res.theta$G[,2,4],
-                   G34 = res.theta$G[,3,4]
+convSAEM <- tibble(beta1 = res.soybean.2017$res.theta$beta[,1],
+                   beta2 = res.soybean.2017$res.theta$beta[,2],
+                   beta3 = res.soybean.2017$res.theta$beta[,3],
+                   beta4 = res.soybean.2017$res.theta$beta[,4],
+                   sigma2 = res.soybean.2017$res.theta$sigma2,
+                   P11 = res.soybean.2017$res.theta$P[,1,1],
+                   P22 = res.soybean.2017$res.theta$P[,2,2],
+                   P12 = res.soybean.2017$res.theta$P[,1,2],
+                   G11 = res.soybean.2017$res.theta$G[,1,1],
+                   G22 = res.soybean.2017$res.theta$G[,2,2],
+                   G33 = res.soybean.2017$res.theta$G[,3,3],
+                   G44 = res.soybean.2017$res.theta$G[,4,4],
+                   G12 = res.soybean.2017$res.theta$G[,1,2],
+                   G13 = res.soybean.2017$res.theta$G[,1,3],
+                   G14 = res.soybean.2017$res.theta$G[,1,4],
+                   G23 = res.soybean.2017$res.theta$G[,2,3],
+                   G24 = res.soybean.2017$res.theta$G[,2,4],
+                   G34 = res.soybean.2017$res.theta$G[,3,4]
 )
 
 plotbeta1 <- ggplot(convSAEM) + geom_line(aes(y = beta1, x = seq(from=0,by=1,length.out = niter))) + labs(y=expression(mu[A]),x="Iteration")
@@ -247,8 +251,8 @@ h.dB <- diag(param.est$G)[4]/(diag(param.est$G)[4]+diag(param.est$P)[2])
 ####
 
 par(mfrow=c(2,3))
-for (j in 1:100){
-  plot(res.pred$u[j,],type='l',main=j,xlab='Iteration',ylab=paste('u[',j,']'))
+for (j in 1:10){
+  plot(res.soybean.2017$res.pred$u[j,],type='l',main=j,xlab='Iteration',ylab=paste('u[',j,']'))
 }
 
 ####
@@ -446,26 +450,81 @@ for (i in 1:Nv){
 
 delta.pred <- phi.predC-phi.predD
 
-## Histograms
+# ## Histograms
+# 
+# param.pred <- tibble(Ac=phi.predC[1,],Ad=phi.predD[1,],Bc=phi.predC[2,],
+#                      Bd=phi.predD[2,],deltaA=delta.pred[1,],
+#                      deltaB=delta.pred[2,])
+# 
+# ggplot(param.pred, aes(x=Ac)) + 
+#   geom_histogram(binwidth=0.02,aes(y=..density..), colour="black", fill="white") + 
+#   geom_density(alpha=.1, fill="#FF6666") +
+#   xlab(expression(A[C]))
+# 
+# ggplot(param.pred, aes(x=deltaA)) + 
+#   geom_histogram(binwidth=0.02,aes(y=..density..), colour="black", fill="white") + 
+#   geom_density(alpha=.1, fill="#FF6666") +
+#   xlab(expression(delta[A]))
+# 
+# ## Scatter plots comparing parameters between conditions
+# 
+# ggplot(param.pred, aes(x=Ac,y=Ad)) + geom_point() + xlab(expression(A[C])) + 
+#   ylab(expression(A[D]))
+# 
+# ggplot(param.pred, aes(x=Bc,y=Bd)) + geom_point() + xlab(expression(B[C])) + 
+#   ylab(expression(B[D]))
 
-param.pred <- tibble(Ac=phi.predC[1,],Ad=phi.predD[1,],Bc=phi.predC[2,],
-                     Bd=phi.predD[2,],deltaA=delta.pred[1,],
-                     deltaB=delta.pred[2,])
 
-ggplot(param.pred, aes(x=Ac)) + 
-  geom_histogram(binwidth=0.02,aes(y=..density..), colour="black", fill="white") + 
-  geom_density(alpha=.1, fill="#FF6666") +
-  xlab(expression(A[C]))
+## Graphical representation of the varietal predicted parameters 
 
-ggplot(param.pred, aes(x=deltaA)) + 
-  geom_histogram(binwidth=0.02,aes(y=..density..), colour="black", fill="white") + 
-  geom_density(alpha=.1, fill="#FF6666") +
-  xlab(expression(delta[A]))
+origin <- read_excel("S1Table_Soybean_cultivars.xlsx",skip=2,col_names=T) 
+origin <- origin %>% rename(variety = ID)
 
-## Scatter plots comparing parameters between conditions
+l_var_temp <- merge(l_var,origin,by="variety") 
 
-ggplot(param.pred, aes(x=Ac,y=Ad)) + geom_point() + xlab(expression(A[C])) + 
-  ylab(expression(A[D]))
+phi_pred <- tibble(A_C = phi.predC[1,], A_D = phi.predD[1,], B_C = phi.predC[2,], 
+                   B_D = phi.predD[2,], order = seq(1,Nv))
 
-ggplot(param.pred, aes(x=Bc,y=Bd)) + geom_point() + xlab(expression(B[C])) + 
-  ylab(expression(B[D]))
+phi_pred_origin <- merge(phi_pred,l_var_temp,by="order")
+
+
+pred1 <- ggplot(phi_pred_origin) + geom_point(aes(x=A_C,y=A_D,color=Group)) +
+  ggtitle(expression(Maximum~Height~(varphi[1]))) + xlab("Normal condition") + 
+  ylab("Dry condition") + 
+  theme(axis.title.y = element_text(size=16),
+        axis.title.x = element_text(size=16),
+        axis.text.y = element_text(size=12),
+        axis.text.x = element_text(size=12))
+pred2 <- ggplot(phi_pred_origin) + geom_point(aes(x=B_C,y=B_D,color=Group)) +
+  ggtitle(expression(Minus~logarithm~of~the~rate~constant~(varphi[2]))) + 
+  xlab("Normal condition") + ylab("Dry condition") + 
+  theme(axis.title.y = element_text(size=16),
+        axis.title.x = element_text(size=16),
+        axis.text.y = element_text(size=12),
+        axis.text.x = element_text(size=12))
+pred3 <- ggplot(phi_pred_origin) + geom_point(aes(x=A_C,y=B_C,color=Group)) +
+  ggtitle("Parameters in normal condition") + xlab(expression(varphi[1])) + 
+  ylab(expression(varphi[2])) + 
+  theme(axis.title.y = element_text(size=16),
+        axis.title.x = element_text(size=16),
+        axis.text.y = element_text(size=12),
+        axis.text.x = element_text(size=12))
+pred4 <- ggplot(phi_pred_origin) + geom_point(aes(x=A_D,y=B_D,color=Group)) +
+  ggtitle("Parameters in dry condition") + xlab(expression(varphi[1])) + 
+  ylab(expression(varphi[2])) + 
+  theme(axis.title.y = element_text(size=16),
+        axis.title.x = element_text(size=16),
+        axis.text.y = element_text(size=12),
+        axis.text.x = element_text(size=12))
+
+
+
+pred <- ggpubr::ggarrange(pred1, pred2, pred3, pred4, 
+                     labels = "AUTO", 
+                     common.legend = T, 
+                     legend = "bottom", 
+                     align = "hv", 
+                     nrow = 2,
+                     ncol = 2)  
+
+#ggsave("group_predictions.png", plot = pred, width = 11, height = 8)
