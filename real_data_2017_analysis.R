@@ -538,7 +538,7 @@ pred
 G.est <- res.soybean.2017$res.theta$G[niterSAEM+1,,]
 P.est <- res.soybean.2017$res.theta$P[niterSAEM+1,,]
 AG <- A %x% G.est 
-
+P.block <- matrix(1,2,2)%x%P.est
 
 # Due to the inclusion of the kinship matrix in the model, the estimated 
 # covariance matrix between growth parameters may vary from one variety to the
@@ -547,18 +547,30 @@ AG <- A %x% G.est
 
 VvarC  <- array(0,dim=c(Nv,nb.phi,nb.phi)) 
 VvarD  <- array(0,dim=c(Nv,nb.phi,nb.phi))
+Vvar   <- array(0,dim=c(Nv,2*nb.phi,2*nb.phi))
 ZivarD <- array(0,dim=c(Nv,nb.phi,d*Nv))
 ZivarC <- array(0,dim=c(Nv,nb.phi,d*Nv))
+Zivar  <- array(0,dim=c(Nv,2*nb.phi,d*Nv))
 
 for (i in 1:Nv){
   vari <- l_var$varID[l_var$order==i]
   ZivarD[i,1:nb.phi,1:(nb.phi*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
   ZivarC[i,1:nb.phi,(nb.phi*Nv+1):(d*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
+  Zivar[i,,] <- rbind(ZivarD[i,,],ZivarC[i,,])
   VvarC[i,,] <- ZivarC[i,,]%*%(AG)%*%t(ZivarC[i,,]) + P.est
   VvarD[i,,] <- ZivarD[i,,]%*%(AG)%*%t(ZivarD[i,,]) + P.est  
+  Vvar[i,,]  <- Zivar[i,,]%*%(AG)%*%t(Zivar[i,,]) + P.block
 }
 
 # Mean estimated correlation matrix in condition C over all the varieties
 cov2cor(apply(VvarC,c(2,3),mean))
 # Mean estimated correlation matrix in condition D over all the varieties
 cov2cor(apply(VvarD,c(2,3),mean))
+# Mean estimated correlation matrix in both conditions over all the varieties
+cov2cor(apply(Vvar,c(2,3),mean))
+
+# Genetic correlation
+
+cov2cor(G.est)
+
+
