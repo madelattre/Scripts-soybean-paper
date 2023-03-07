@@ -399,8 +399,8 @@ for (repCV in 1:nrep_CV){
   
   predictions <- data.frame(variety=var.tab,upred=u.pred.tab,num=num.tab)
   load(paste(resultsrepositoryname,'/',res.soybean.2017.file,sep=""))
-  niterU <- dim(res.2017.log$res.pred.Z.2017$u)[2]
-  u.est <- res.2017.log$res.pred.Z.2017$u[,niterU]
+  niterU <- dim(res.soybean.2017$res.pred$u)[2]
+  u.est <- res.soybean.2017$res.pred$u[,niterU]
   estimations <- data.frame(variety=rep(l_var$variety,4),uest = u.est, num=rep(1:4,each=length(l_var$variety)))
   
   
@@ -527,4 +527,38 @@ pred <- ggpubr::ggarrange(pred1, pred2, pred3, pred4,
                      nrow = 2,
                      ncol = 2)  
 
+pred
+
 #ggsave("group_predictions.png", plot = pred, width = 11, height = 8)
+
+####
+## 8- Estimated covariance/correlation matrices between growth parameters
+####
+
+G.est <- res.soybean.2017$res.theta$G[niterSAEM+1,,]
+P.est <- res.soybean.2017$res.theta$P[niterSAEM+1,,]
+AG <- A %x% G.est 
+
+
+# Due to the inclusion of the kinship matrix in the model, the estimated 
+# covariance matrix between growth parameters may vary from one variety to the
+# other. As an interaction between condition and genome is considered in the 
+# model, it may also be different according to the condition. 
+
+VvarC  <- array(0,dim=c(Nv,nb.phi,nb.phi)) 
+VvarD  <- array(0,dim=c(Nv,nb.phi,nb.phi))
+ZivarD <- array(0,dim=c(Nv,nb.phi,d*Nv))
+ZivarC <- array(0,dim=c(Nv,nb.phi,d*Nv))
+
+for (i in 1:Nv){
+  vari <- l_var$varID[l_var$order==i]
+  ZivarD[i,1:nb.phi,1:(nb.phi*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
+  ZivarC[i,1:nb.phi,(nb.phi*Nv+1):(d*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
+  VvarC[i,,] <- ZivarC[i,,]%*%(AG)%*%t(ZivarC[i,,]) + P.est
+  VvarD[i,,] <- ZivarD[i,,]%*%(AG)%*%t(ZivarD[i,,]) + P.est  
+}
+
+# Mean estimated correlation matrix in condition C over all the varieties
+cov2cor(apply(VvarC,c(2,3),mean))
+# Mean estimated correlation matrix in condition D over all the varieties
+cov2cor(apply(VvarD,c(2,3),mean))
