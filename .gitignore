@@ -1,7 +1,5 @@
-2017_Tottori_Jul_PlantHeight_Imputed.csv
-2017_Tottori_Jul_UAVCanopyHeight.csv
-GRM2017.Rdata
-Res.soybean.2017.Rdata
-SoyCREST_Weather_Tottori_2017.csv
+*.xlsx
+*.csv
+*.Rdata
+*.png
 .Rhistory
-S1Table_Soybean_cultivars.xlsx
