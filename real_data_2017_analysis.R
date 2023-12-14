@@ -107,6 +107,9 @@ plot_variety
 # 
 # plot_variety
 
+
+save(data.log,file=paste(datarepositoryname,"/FinalData2017.Rdata",sep=""))
+
 ####
 ## 2- Analysis of the logarithms of the heights using the asymptotic growth model 
 ####
@@ -151,11 +154,13 @@ nburninSAEM <- 300
 
 ## Estimation of the population parameters
 
+
 res.theta <- SAEM_GRM(niter=niterSAEM, nburnin=nburninSAEM, data=data.log, 
                       predictors=c(4,5), paraminit=paraminit.log, 
                       GRM_mat = A, Xi=Xi, Zi=Zi, model = asym.model,
                       Nchain=10)
 
+                
 param.est <- list(beta=res.theta$beta[niterSAEM+1,],
                   sigma2=res.theta$sigma2[niterSAEM+1],
                   P=res.theta$P[niterSAEM+1,,],
@@ -168,10 +173,9 @@ param.est <- list(beta=res.theta$beta[niterSAEM+1,],
 niterPred <- 1000
 nburninPred <- 800
 
-res.pred <- predict.u(niter=niterPred, nburnin=nburninPred, data=data.log, 
-                      predictors=c(4,5), param.est, GRM_mat=A, Xi, Zi, 
+res.pred <- predict.u(niter=niterPred, nburnin=nburninPred, data=data.log,
+                      predictors=c(4,5), param.est, GRM_mat=A, Xi, Zi,
                       model=asym.model, Nsim=10, Nchain = 10)
-
 
 ## Saving results
 
@@ -246,336 +250,12 @@ h.dA <- diag(param.est$G)[3]/(diag(param.est$G)[3]+diag(param.est$P)[1])
 h.B <- diag(param.est$G)[2]/(diag(param.est$G)[2]+diag(param.est$P)[2])
 h.dB <- diag(param.est$G)[4]/(diag(param.est$G)[4]+diag(param.est$P)[2])
 
-####
-## 5- Convergence graphs for the prediction of the genetic values
-####
+# ####
+# ## 5- Convergence graphs for the prediction of the genetic values
+# ####
 
 par(mfrow=c(2,3))
 for (j in 1:10){
   plot(res.soybean.2017$res.pred$u[j,],type='l',main=j,xlab='Iteration',ylab=paste('u[',j,']'))
 }
-
-####
-## 6- Cross-validation
-####
-
-
-## Algorithmic settings for cross-validation
-nrep_CV  <- 4  # Nb of repetitions for cross-validation
-nb_group <- 5 # Nb of samples
-
-
-rn <- rownames(A)
-
-for (repCV in 1:nrep_CV){
-  repartition <- sample(rep(1:nb_group, length=Nv))
-  groups      <- tibble(varID=l_var$varID,group=repartition)
-  datatry     <- left_join(data.log,groups,"varID")
-
-  ## Elements to save the different results
-
-  param.est.cv <- list()
-  u.pred.cv <- list()
-
-  for (g in 1:nb_group){
-
-    ## Definition of the training and validation subsets
-
-    validation <- datatry %>% filter(group==g)
-    var_valid  <- unique(validation$variety)
-    rn_valid   <- which(rn %in% var_valid)
-    A_valid    <- A[rn_valid,rn_valid]
-    training   <- datatry %>% filter(group!=g)
-    var_train  <- unique(training$variety)
-    rn_train   <- which(rn %in% var_train)
-    A_train    <- A[rn_train,rn_train]
-
-
-
-    ## Processing of the training and validation data
-
-    Nvtrain <- length(unique(training$varID))
-    Ntrain  <- length(unique(training$id))
-
-    l_id_train  <- unique(training$id)
-    l_var_train <- dplyr::select(training, "varID", "variety") %>% distinct()
-
-    Nvvalid <- length(unique(validation$varID))
-    Nvalid  <- length(unique(validation$id))
-
-    l_id_valid <- unique(validation$id)
-    l_var_valid <- dplyr::select(validation, "varID", "variety") %>% distinct()
-
-    Zi.train <- array(0,dim=c(Ntrain,nb.phi,d*Nvtrain))
-    Xi.train <- array(0,dim=c(Ntrain,nb.phi,2*nb.phi))
-
-    for (i in 1:Ntrain){
-      condi <- 1-as.numeric(training$condD[training$id==l_id_train[i]][1])
-      Xi.train[i,1:nb.phi,1:nb.phi] <- diag(nb.phi)
-      Xi.train[i,1:nb.phi,(nb.phi+1):(2*nb.phi)] <- diag(condi,nb.phi)
-      vari <- training$varID[training$id==l_id_train[i]][1]
-      if (condi==0){
-        Zi.train[i,1:nb.phi,1:(nb.phi*Nvtrain)] <- diag(nb.phi)%x%t(l_var_train$varID==vari)
-      } else{
-        Zi.train[i,1:nb.phi,(nb.phi*Nvtrain+1):(d*Nvtrain)] <- diag(nb.phi)%x%t(l_var_train$varID==vari)
-      }
-    }
-
-    Zi.valid <- array(0,dim=c(Nvalid,nb.phi,d*Nvvalid))
-    Xi.valid <- array(0,dim=c(Nvalid,nb.phi,2*nb.phi))
-
-    for (i in 1:Nvalid){
-      #condi <- as.numeric(data$condD[data$id==l_id[i]][1])
-      condi <- 1-as.numeric(validation$condD[validation$id==l_id_valid[i]][1])
-      Xi.valid[i,1:nb.phi,1:nb.phi] <- diag(nb.phi)
-      Xi.valid[i,1:nb.phi,(nb.phi+1):(2*nb.phi)] <- diag(condi,nb.phi)
-      vari <- validation$varID[validation$id==l_id_valid[i]][1]
-      if (condi==0){
-        Zi.valid[i,1:nb.phi,1:(nb.phi*Nvvalid)] <- diag(nb.phi)%x%t(l_var_valid$varID==vari)
-      } else{
-        Zi.valid[i,1:nb.phi,(nb.phi*Nvvalid+1):(d*Nvvalid)] <- diag(nb.phi)%x%t(l_var_valid$varID==vari)
-      }
-    }
-
-    ## Estimation of the population parameters based on the training subset
-
-    param.est.cv[[g]] <- res.train <- SAEM_GRM(niter=niterSAEM, nburnin=nburninSAEM, data=training,
-                                               predictors=c(4,5), paraminit=paraminit.log,
-                                               GRM_mat = A_train, Xi=Xi.train, Zi=Zi.train,
-                                               model = asym.model, Nchain=10)
-
-    param.est.train <- list(beta=res.train$beta[niterSAEM+1,],
-                            sigma2=res.train$sigma2[niterSAEM+1],
-                            P=res.train$P[niterSAEM+1,,],
-                            G=res.train$G[niterSAEM+1,,])
-
-
-    ## Prediction of the genetic effects based on the validation subset
-   
-
-    u.pred.cv[[g]] <- res.valid <- predict.u(niter=niterPred, nburnin=nburninPred, data=validation,
-                                             predictors=c(4,5),param.est.train, GRM_mat=A_valid,
-                                             Xi=Xi.valid, Zi=Zi.valid, model=asym.model,
-                                             Nsim=10, Nchain = 10)
-
-    ## Store the results
-
-    res.CV <- list(param.est.cv,u.pred.cv,repartition)
-    save(res.CV,file=paste(resultsrepositoryname,"/Soybean_data_2017_cv",repCV,".Rdata",sep=""))
-  }
-}
-
-
-
-
-
-## Compare the predictions obtained by cross-validation with the predictions
-## computed from the full dataset
- 
-
-cor.cv <- c() ## to store correlations between cross-validated predictions and 
-## full data predictions
-mse.cv <- c() ## to store the mean squared errors between cross-validated  
-## predictions and full data predictions
-
-for (repCV in 1:nrep_CV){
-  load(paste(resultsrepositoryname,"/Soybean_data_2017_cv",repCV,".Rdata",sep=""))
-  
-  repartition <- res.CV[[3]]
-  groups <- tibble(varID=l_var$varID,group=repartition)
-  datatry <- left_join(data.log,groups,"varID")
-  
-  
-  var.tab <- c()
-  u.pred.tab <- c()
-  num.tab <- c()
-  for (g in 1:nb_group){
-    validation <- datatry %>% filter(group==g)
-    l_var_valid <- dplyr::select(validation, "varID", "variety") %>% distinct()
-    var.tab <- c(var.tab,rep(l_var_valid$variety,4))
-    u.pred.tab <- c(u.pred.tab,res.CV[[2]][[g]]$u[,niterPred+1])
-    num.tab <- c(num.tab,rep(1:4,each=length(l_var_valid$variety)))
-  }
-  
-  predictions <- data.frame(variety=var.tab,upred=u.pred.tab,num=num.tab)
-  load(paste(resultsrepositoryname,'/',res.soybean.2017.file,sep=""))
-  niterU <- dim(res.soybean.2017$res.pred$u)[2]
-  u.est <- res.soybean.2017$res.pred$u[,niterU]
-  estimations <- data.frame(variety=rep(l_var$variety,4),uest = u.est, num=rep(1:4,each=length(l_var$variety)))
-  
-  
-  compare <- inner_join(estimations,predictions,by=c("variety","num"))
-  cor.cv <- c(cor.cv,cor(compare$uest,compare$upred))
-  mse.cv <- c(mse.cv,mean((compare$uest-compare$upred)^2))
-}
-
-####
-## 7- Compare predicted parameters between varieties
-#### 
-
-beta.est <- res.soybean.2017$res.theta$beta[niterSAEM+1,]
-u.pred   <- res.soybean.2017$res.pred$u[,niterPred+1]
-
-
-## Predicted parameters per plant
-
-phi.pred <- matrix(0,N,nb.phi)
-for (i in 1:N){
-  phi.pred[i,] <- Xi[i,,] %*% beta.est + Zi[i,,] %*% u.pred 
-}
-
-## Predicted parameters per variety and per condition
-
-
-XiD <- matrix(0,nb.phi,d)
-XiD[1:nb.phi,1:nb.phi] <- diag(1,nb.phi)
-XiC <- XiD
-XiC[1:nb.phi,(nb.phi+1):d] <- diag(1,d-nb.phi)
-
-ZivarD <- array(0,dim=c(Nv,nb.phi,d*Nv))
-ZivarC <- array(0,dim=c(Nv,nb.phi,d*Nv))
-
-for (i in 1:Nv){
-  vari <- l_var$varID[l_var$order==i]
-  ZivarD[i,1:nb.phi,1:(nb.phi*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
-  ZivarC[i,1:nb.phi,(nb.phi*Nv+1):(d*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
-}
-
-phi.predC <- matrix(0,nb.phi,Nv)
-phi.predD <- matrix(0,nb.phi,Nv)
-for (i in 1:Nv){
-  phi.predC[,i] <- XiC %*% beta.est + ZivarC[i,,] %*% u.pred
-  phi.predD[,i] <- XiD %*% beta.est + ZivarD[i,,] %*% u.pred
-}
-
-delta.pred <- phi.predC-phi.predD
-
-# ## Histograms
-# 
-# param.pred <- tibble(Ac=phi.predC[1,],Ad=phi.predD[1,],Bc=phi.predC[2,],
-#                      Bd=phi.predD[2,],deltaA=delta.pred[1,],
-#                      deltaB=delta.pred[2,])
-# 
-# ggplot(param.pred, aes(x=Ac)) + 
-#   geom_histogram(binwidth=0.02,aes(y=..density..), colour="black", fill="white") + 
-#   geom_density(alpha=.1, fill="#FF6666") +
-#   xlab(expression(A[C]))
-# 
-# ggplot(param.pred, aes(x=deltaA)) + 
-#   geom_histogram(binwidth=0.02,aes(y=..density..), colour="black", fill="white") + 
-#   geom_density(alpha=.1, fill="#FF6666") +
-#   xlab(expression(delta[A]))
-# 
-# ## Scatter plots comparing parameters between conditions
-# 
-# ggplot(param.pred, aes(x=Ac,y=Ad)) + geom_point() + xlab(expression(A[C])) + 
-#   ylab(expression(A[D]))
-# 
-# ggplot(param.pred, aes(x=Bc,y=Bd)) + geom_point() + xlab(expression(B[C])) + 
-#   ylab(expression(B[D]))
-
-
-## Graphical representation of the varietal predicted parameters 
-
-origin <- read_excel("S1Table_Soybean_cultivars.xlsx",skip=2,col_names=T) 
-origin <- origin %>% rename(variety = ID)
-
-l_var_temp <- merge(l_var,origin,by="variety") 
-
-phi_pred <- tibble(A_C = phi.predC[1,], A_D = phi.predD[1,], B_C = phi.predC[2,], 
-                   B_D = phi.predD[2,], order = seq(1,Nv))
-
-phi_pred_origin <- merge(phi_pred,l_var_temp,by="order")
-
-
-pred1 <- ggplot(phi_pred_origin) + geom_point(aes(x=A_C,y=A_D,color=Group)) +
-  ggtitle(expression(Maximum~Height~(varphi[1]))) + xlab("Normal condition") + 
-  ylab("Dry condition") + 
-  theme(axis.title.y = element_text(size=16),
-        axis.title.x = element_text(size=16),
-        axis.text.y = element_text(size=12),
-        axis.text.x = element_text(size=12))
-pred2 <- ggplot(phi_pred_origin) + geom_point(aes(x=B_C,y=B_D,color=Group)) +
-  ggtitle(expression(Minus~logarithm~of~the~rate~constant~(varphi[2]))) + 
-  xlab("Normal condition") + ylab("Dry condition") + 
-  theme(axis.title.y = element_text(size=16),
-        axis.title.x = element_text(size=16),
-        axis.text.y = element_text(size=12),
-        axis.text.x = element_text(size=12))
-pred3 <- ggplot(phi_pred_origin) + geom_point(aes(x=A_C,y=B_C,color=Group)) +
-  ggtitle("Parameters in normal condition") + xlab(expression(varphi[1])) + 
-  ylab(expression(varphi[2])) + 
-  theme(axis.title.y = element_text(size=16),
-        axis.title.x = element_text(size=16),
-        axis.text.y = element_text(size=12),
-        axis.text.x = element_text(size=12))
-pred4 <- ggplot(phi_pred_origin) + geom_point(aes(x=A_D,y=B_D,color=Group)) +
-  ggtitle("Parameters in dry condition") + xlab(expression(varphi[1])) + 
-  ylab(expression(varphi[2])) + 
-  theme(axis.title.y = element_text(size=16),
-        axis.title.x = element_text(size=16),
-        axis.text.y = element_text(size=12),
-        axis.text.x = element_text(size=12))
-
-
-
-pred <- ggpubr::ggarrange(pred1, pred2, pred3, pred4, 
-                     labels = "AUTO", 
-                     common.legend = T, 
-                     legend = "bottom", 
-                     align = "hv", 
-                     nrow = 2,
-                     ncol = 2)  
-
-pred
-
-#ggsave("group_predictions.png", plot = pred, width = 11, height = 8)
-
-####
-## 8- Estimated covariance/correlation matrices between growth parameters
-####
-
-G.est <- res.soybean.2017$res.theta$G[niterSAEM+1,,]
-P.est <- res.soybean.2017$res.theta$P[niterSAEM+1,,]
-AG <- A %x% G.est 
-
-
-# Due to the inclusion of the kinship matrix in the model, the estimated 
-# covariance matrix between growth parameters may vary from one variety to the
-# other. As an interaction between condition and genome is considered in the 
-# model, it may also be different according to the condition. 
-
-ZivarD <- array(0,dim=c(Nv,nb.phi,d*Nv))
-ZivarC <- array(0,dim=c(Nv,nb.phi,d*Nv))
-
-# Marginal covariance matrices
-VvarC  <- array(0,dim=c(Nv,nb.phi,nb.phi)) 
-VvarD  <- array(0,dim=c(Nv,nb.phi,nb.phi))
-# Genetic covariance matrices
-GVvarC  <- array(0,dim=c(Nv,nb.phi,nb.phi)) 
-GVvarD  <- array(0,dim=c(Nv,nb.phi,nb.phi))
-
-
-for (i in 1:Nv){
-  vari <- l_var$varID[l_var$order==i]
-  ZivarD[i,1:nb.phi,1:(nb.phi*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
-  ZivarC[i,1:nb.phi,(nb.phi*Nv+1):(d*Nv)] <- diag(nb.phi)%x%t(l_var$varID==vari)
-  GVvarC[i,,] <- ZivarC[i,,]%*%(AG)%*%t(ZivarC[i,,]) 
-  GVvarD[i,,] <- ZivarD[i,,]%*%(AG)%*%t(ZivarD[i,,]) 
-  VvarC[i,,] <- ZivarC[i,,]%*%(AG)%*%t(ZivarC[i,,]) + P.est
-  VvarD[i,,] <- ZivarD[i,,]%*%(AG)%*%t(ZivarD[i,,]) + P.est  
-}
-
-# Mean estimated marginal correlation matrix in condition C over all the varieties
-cov2cor(apply(VvarC,c(2,3),mean))
-# Mean estimated marginal correlation matrix in condition D over all the varieties
-cov2cor(apply(VvarD,c(2,3),mean))
-
-
-# Mean estimated genetic correlation matrix in condition C over all the varieties
-cov2cor(apply(GVvarC,c(2,3),mean))
-# Mean estimated genetic correlation matrix in condition D over all the varieties
-cov2cor(apply(GVvarD,c(2,3),mean))
-
-
 
