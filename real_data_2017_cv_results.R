@@ -109,7 +109,7 @@ for (repCV in 1:nrep_CV){
       tj <- tj[ij]
       rsd.y.cv2.cond[1,repCV,g,j] <- mean(abs((res.CV[[4]][[g]]$y[tj]-res.CV[[4]][[g]]$ypred[tj])/res.CV[[4]][[g]]$y[tj]))
     }
-  }  
+  }
 }
 
 # In condition D
@@ -122,7 +122,7 @@ for (repCV in 1:nrep_CV){
       tj <- tj[ij]
       rsd.y.cv2.cond[2,repCV,g,j] <- mean(abs((res.CV[[4]][[g]]$y[tj]-res.CV[[4]][[g]]$ypred[tj])/res.CV[[4]][[g]]$y[tj]))
     }
-  }  
+  }
 }
 
 apply(rsd.y.cv2.cond,c(1,4),mean)
@@ -156,3 +156,100 @@ figure <- ggarrange(cv1.plot, cv2.plot,
 figure
 
 ggsave(paste(resultsrepositoryname,"/cv-real-data.png",sep=""))
+
+
+
+####
+## Results of comparison with GBM
+####
+
+
+
+asym.model <- function(input, freevec, parameters){
+  A <- parameters[1]
+  B <- parameters[2]
+  ypred <- A * (1 - exp(- exp(B) * input))
+  return(ypred)
+}
+
+freevec <- 0
+
+rsd.y.cv1.GBM.cond <- array(NA,dim=c(2,nrep_CV,nb_group,length(unique.time)))
+
+# In condition C
+for (repCV in 1:nrep_CV){
+  load(paste(datarepositoryname,"/Soybean_data_2017_cv1_",repCV,".Rdata",sep=""))
+  load(paste(resultsrepositoryname,"/Soybean_data_2017_GBM_cv1_",repCV,".Rdata",sep=""))
+  for (g in 1:nb_group){
+    for (j in 1:length(unique.time)){
+      tj <- which((res.CV[[4]][[g]]$time==unique.time[j]))
+      dataij <- res.CV[[4]][[g]][tj,]
+      ij <- which(res.CV[[4]][[g]]$condD[tj]==F)
+      dataij <- dataij[ij,] %>% arrange(variety)
+      tj <- tj[ij]
+      
+      
+      ypredGBM <- apply(cbind(valid.pred[[g]]$phi1.C,valid.pred[[g]]$phi2.C), 1, function(x) 
+        asym.model(unique.time[j],freevec,x))
+      
+      predj <- valid.pred[[g]] %>% mutate(ypredGBM=ypredGBM) %>% select(variety,ypredGBM)
+      finj <- inner_join(dataij,predj,by="variety")
+      rsd.y.cv1.GBM.cond[1,repCV,g,j] <- mean(abs((finj$y-finj$ypredGBM)/finj$y))
+    }
+  }  
+}
+
+
+
+# In condition D
+for (repCV in 1:nrep_CV){
+  load(paste(datarepositoryname,"/Soybean_data_2017_cv1_",repCV,".Rdata",sep=""))
+  load(paste(resultsrepositoryname,"/Soybean_data_2017_GBM_cv1_",repCV,".Rdata",sep=""))
+  for (g in 1:nb_group){
+    for (j in 1:length(unique.time)){
+      tj <- which((res.CV[[4]][[g]]$time==unique.time[j]))
+      dataij <- res.CV[[4]][[g]][tj,]
+      ij <- which(res.CV[[4]][[g]]$condD[tj]==T)
+      dataij <- dataij[ij,] %>% arrange(variety)
+      tj <- tj[ij]
+      
+      
+      ypredGBM <- apply(cbind(valid.pred[[g]]$phi1.D,valid.pred[[g]]$phi2.D), 1, function(x) 
+        asym.model(unique.time[j],freevec,x))
+      
+      predj <- valid.pred[[g]] %>% mutate(ypredGBM=ypredGBM) %>% select(variety,ypredGBM)
+      finj <- inner_join(dataij,predj,by="variety")
+      rsd.y.cv1.GBM.cond[2,repCV,g,j] <- mean(abs((finj$y-finj$ypredGBM)/finj$y))
+    }
+  }  
+}
+
+ttime <- rep(unique.time,each=nb_group*nrep_CV)
+ccond <- rep(c("C","D"),each=length(ttime))
+
+rsd.y.cv1.GBM.cond <- apply(rsd.y.cv1.GBM.cond, c(1,4), c)
+rsd.y.cv1.GBM.cond <- provideDimnames(rsd.y.cv1.GBM.cond, sep = "_", base = list('rep','cond','time'))
+rsd.y.cv1.GBM.cond <- apply(rsd.y.cv1.GBM.cond,2,c)
+tib.res.cv1.GBM <- tibble(rsd=c(rsd.y.cv1.GBM.cond),cond=ccond,time=rep(ttime,2))
+tib.res.cv1.GBM <- mutate(tib.res.cv1.GBM, cond=as.factor(cond), time=as.factor(time))
+
+cv1.GBM.plot <- ggplot(tib.res.cv1.GBM, aes(x=time, y=rsd*100, fill=cond)) +
+  ylim(2.5,13.5) +
+  ylab("Rdiff (%)") +
+  theme(axis.title=element_text(size=14,face="bold"),
+        axis.text.x=element_text(angle = 90,size=12),
+        axis.text.y=element_text(size=12),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black")) +
+  geom_boxplot()
+
+
+compare.figure <- ggarrange(cv1.plot, cv1.GBM.plot,
+                    labels = c("NLMEM", "GBM"),
+                    ncol = 2, nrow = 1)
+compare.figure
+ 
+ggsave(paste(resultsrepositoryname,"/comparison-real-data.png",sep=""))
