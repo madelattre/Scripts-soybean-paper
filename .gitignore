@@ -1,5 +1,7 @@
 *.xlsx
-*.csv
+2017_Tottori_Jul_PlantHeight_Imputed.csv
+2017_Tottori_Jul_UAVCanopyHeight.csv
+SoyCREST_Weather_Tottori_2017.csv
 *.Rdata
 *.png
 .Rhistory
