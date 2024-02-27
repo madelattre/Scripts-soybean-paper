@@ -32,36 +32,12 @@ source(paste(functionsrepository,"/main_functions.R",sep=""))
 
 ## Load GRM matrix
 
-load(paste(datarepositoryname,"/GRM2017.Rdata",sep=""))
+grm <- read.csv(paste(datarepositoryname,"/grm.csv",sep=""))
+A <- data.matrix(grm[,-1])
 
-## Original data
-datafile <- paste(datarepositoryname,
-                  "/2017_Tottori_Jul_PlantHeight_Imputed.csv",sep="")
+## Load phenotype data
 
-
-UAV_height  <- read_csv(datafile,col_names=TRUE) %>% 
-  rowid_to_column(var = "LineID")%>%
-  gather(key = "Day", value = "Height", 11:20) %>%
-  mutate(Date= as.Date(substring(Day, first=2, last= nchar(Day)), format = "%y%m%d")) %>%
-  mutate(condition=substring(block, first=1, last= 1)) %>%
-  filter(Height != "NA") %>%
-  filter(!is.na(varietyID)) %>%
-  filter(variety %in% colnames(A)) %>% 
-  filter(Height>=0)
-
-## Time in heat unit
-heattimefile <- paste(datarepositoryname,
-                      "/SoyCREST_Weather_Tottori_2017.csv",sep="")
-heat.time <- read_csv(heattimefile,col_names = TRUE) %>%
-  select(Date,HeatUnit)
-
-## Processed data
-UAV_final <- merge(UAV_height,heat.time,id="Date")
-
-data <- UAV_final %>% 
-  rename(c("y"="Height","id"="LineID","varID"="varietyID",
-           "time"="HeatUnit")) %>% 
-  mutate(condD = condition=="D")
+data <- read.csv(paste(datarepositoryname,"/pheno.csv",sep=""))[,-1]
 
 
 Nv    <- ncol(A) ## Number of varieties
@@ -97,18 +73,18 @@ plot_variety
 # plot_variety <- ggplot(data.log,
 #                        aes(x=time, y=y, group=id,
 #                            color=as.factor(condition))) +
-#   geom_line() + theme_bw() + facet_grid(~condition) + 
+#   geom_line() + theme_bw() + facet_grid(~condition) +
 #   theme(legend.position = "none",
 #         axis.title.y = element_text(size=16),
 #         axis.title.x = element_text(size=16),
 #         axis.text.y = element_text(size=12),
-#         axis.text.x = element_text(size=12, angle = 45)) + 
+#         axis.text.x = element_text(size=12, angle = 45)) +
 #   ylab("Log Height") + xlab("Heat time")
 # 
 # plot_variety
 
 
-save(data.log,file=paste(datarepositoryname,"/FinalData2017.Rdata",sep=""))
+#save(data.log,file=paste(datarepositoryname,"/FinalData2017.Rdata",sep=""))
 
 ####
 ## 2- Analysis of the logarithms of the heights using the asymptotic growth model 

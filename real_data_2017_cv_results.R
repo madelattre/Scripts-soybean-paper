@@ -25,7 +25,9 @@ functionsrepository <- dirname(rstudioapi::getActiveDocumentContext()$path) ## S
 datarepositoryname <- dirname(rstudioapi::getActiveDocumentContext()$path) ## Specify the name of the data repository
 resultsrepositoryname <- dirname(rstudioapi::getActiveDocumentContext()$path) ## Specify the name of the repository in which storing the results
 
-load(paste(datarepositoryname,"/FinalData2017.Rdata",sep=""))
+data <- read.csv(paste(datarepositoryname,"/pheno.csv",sep=""))[,-1]
+data.log <- data %>% mutate(y = log(y))
+
 nrep_CV  <- 4  # Nb of repetitions for cross-validation
 nb_group <- 5  # Nb of samples for cross-validation
 

@@ -34,8 +34,10 @@ source(paste(functionsrepository,"/main_functions.R",sep=""))
 
 ## Load GRM matrix and processed data 
 
-load(paste(datarepositoryname,"/GRM2017.Rdata",sep=""))
-load(paste(datarepositoryname,"/FinalData2017.Rdata",sep=""))
+grm <- read.csv(paste(datarepositoryname,"/grm.csv",sep=""))
+A <- data.matrix(grm[,-1])
+data <- read.csv(paste(datarepositoryname,"/pheno.csv",sep=""))[,-1]
+data.log <- data %>% mutate(y = log(y))
 
 
 ## Data characteristics
